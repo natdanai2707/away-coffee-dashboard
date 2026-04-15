@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Away Coffee & Co. — สาขา 5 Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --brown:    #5C3317;
+    --coffee:   #7B4F2E;
+    --latte:    #C49A6C;
+    --cream:    #F5EFE6;
+    --sand:     #EDE0CE;
+    --white:    #FFFFFF;
+    --green:    #4CAF50;
+    --red:      #EF5350;
+    --blue:     #42A5F5;
+    --purple:   #AB47BC;
+    --orange:   #FFA726;
+    --text:     #2D1B0E;
+    --subtext:  #7A5C3A;
+    --border:   #DDD0BC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Noto Sans Thai', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── TOP BAR ── */
+  header {
+    background: linear-gradient(135deg, var(--brown) 0%, var(--coffee) 100%);
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 16px rgba(92,51,23,.3);
+  }
+  header .logo {
+    display: flex; align-items: center; gap: 14px;
+  }
+  header .logo svg { width: 40px; height: 40px; }
+  header h1 { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+  header h1 span { font-size: .85rem; font-weight: 400; opacity: .8; display: block; }
+  header .meta {
+    text-align: right; font-size: .82rem; opacity: .85;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  }
+  .refresh-btn {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.35);
+    color: white;
+    padding: 7px 18px;
+    border-radius: 20px;
+    font-size: .82rem;
+    cursor: pointer;
+    transition: background .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .refresh-btn:hover { background: rgba(255,255,255,.28); }
+  #lastUpdated { font-size:.75rem; opacity:.7; }
+
+  /* ── LAYOUT ── */
+  main { padding: 28px 32px; max-width: 1400px; margin: auto; }
+  .section-title {
+    font-size: .7rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--subtext);
+    margin: 28px 0 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content:''; flex:1; height:1px; background: var(--border);
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: 0 2px 12px rgba(92,51,23,.08);
+    border: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content:''; position: absolute; top:0; left:0; right:0; height:4px;
+    background: var(--accent, var(--latte));
+  }
+  .kpi-card .label {
+    font-size: .72rem; color: var(--subtext); font-weight: 600;
+    text-transform: uppercase; letter-spacing:.06em; margin-bottom: 8px;
+  }
+  .kpi-card .value {
+    font-size: 1.75rem; font-weight: 800; color: var(--text); line-height:1;
+  }
+  .kpi-card .unit { font-size:.85rem; font-weight:500; color: var(--subtext); margin-top:3px; }
+  .kpi-card .badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size:.72rem; font-weight:700; padding:2px 8px;
+    border-radius:10px; margin-top:8px;
+  }
+  .badge.up   { background:#E8F5E9; color:#2E7D32; }
+  .badge.down { background:#FFEBEE; color:#C62828; }
+  .badge.neu  { background:#F5F5F5; color:#555; }
+
+  /* ── CHART CARDS ── */
+  .chart-grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  .chart-grid-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;
+  }
+  .chart-card {
+    background: var(--white); border-radius: 16px;
+    padding: 22px 24px; box-shadow: 0 2px 12px rgba(92,51,23,.08);
+    border: 1px solid var(--border);
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-card h3 {
+    font-size:.85rem; font-weight:700; color: var(--text); margin-bottom:18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chart-card h3 .dot {
+    width:10px; height:10px; border-radius:50%;
+    background: var(--dot, var(--latte)); flex-shrink:0;
+  }
+  .chart-wrap { position:relative; }
+
+  /* ── MONTH TABLE ── */
+  .month-table {
+    width:100%; border-collapse:collapse; font-size:.82rem;
+  }
+  .month-table th {
+    text-align:left; padding:10px 12px;
+    background: var(--sand); color: var(--subtext);
+    font-weight:700; font-size:.7rem; text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  .month-table th:first-child { border-radius:8px 0 0 8px; }
+  .month-table th:last-child  { border-radius:0 8px 8px 0; }
+  .month-table td {
+    padding:11px 12px; border-bottom:1px solid #F0E8DC;
+    color: var(--text);
+  }
+  .month-table tr:last-child td { border-bottom: none; }
+  .month-table td.num { font-weight:700; }
+  .month-table td.rev { color: var(--coffee); font-weight:800; }
+  .month-tag {
+    display:inline-block; padding:3px 10px; border-radius:8px;
+    font-weight:700; font-size:.78rem;
+  }
+  .tag-jan { background:#FFF3E0; color:#E65100; }
+  .tag-feb { background:#E8F5E9; color:#1B5E20; }
+  .tag-mar { background:#E3F2FD; color:#0D47A1; }
+  .tag-apr { background:#F3E5F5; color:#4A148C; }
+
+  /* ── PROGRESS BAR ── */
+  .prog-row { margin-bottom:12px; }
+  .prog-label { display:flex; justify-content:space-between; margin-bottom:4px; font-size:.78rem; }
+  .prog-label .name { font-weight:600; }
+  .prog-label .val  { color: var(--subtext); }
+  .prog-bar { height:8px; border-radius:4px; background:#F0E8DC; overflow:hidden; }
+  .prog-fill { height:100%; border-radius:4px; transition: width .6s ease; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align:center; padding:20px; font-size:.72rem;
+    color: var(--subtext); margin-top: 32px;
+  }
+
+  /* ── LOADING OVERLAY ── */
+  #loadingOverlay {
+    display:none; position:fixed; inset:0;
+    background: rgba(245,239,230,.85); z-index:999;
+    align-items:center; justify-content:center; flex-direction:column; gap:12px;
+  }
+  #loadingOverlay.show { display:flex; }
+  .spinner {
+    width:40px; height:40px; border:4px solid var(--border);
+    border-top-color: var(--coffee); border-radius:50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 900px) {
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+    main { padding: 16px; }
+    header { padding: 16px; flex-wrap: wrap; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="color:var(--coffee);font-weight:700;font-size:.9rem;">กำลังโหลดข้อมูล...</div>
+</div>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="rgba(255,255,255,0.15)"/>
+      <path d="M10 28 Q20 12 30 28" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="20" cy="28" rx="10" ry="3" fill="rgba(255,255,255,0.3)"/>
+      <circle cx="20" cy="18" r="3" fill="white" opacity=".9"/>
+    </svg>
+    <div>
+      <h1>Away Coffee &amp; Co.
+        <span>Sales Dashboard — สาขา 5</span>
+      </h1>
+    </div>
+  </div>
+  <div class="meta">
+    <div id="lastUpdated">—</div>
+    <button class="refresh-btn" onclick="refreshData()">
+      ↻ Refresh ข้อมูล
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI ROW -->
+  <div class="section-title">📊 ภาพรวม YTD 2026 (สาขา 5)</div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- REVENUE CHART -->
+  <div class="section-title">💰 รายได้รายเดือน</div>
+  <div class="chart-card full">
+    <h3><span class="dot" style="--dot:#7B4F2E"></span>Monthly Revenue (บาท)</h3>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CATEGORY + CHANNEL -->
+  <div class="section-title">🛍️ หมวดสินค้า &amp; ช่องทางการขาย</div>
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#C49A6C"></span>ยอดขายตามหมวดสินค้า (บาท)</h3>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#42A5F5"></span>ช่องทางการขาย (บาท)</h3>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="channelChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILLS + CUSTOMERS -->
+  <div class="section-title">🧾 จำนวนบิล &amp; ลูกค้า</div>
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#4CAF50"></span>จำนวนบิลต่อเดือน</h3>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="billsChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#AB47BC"></span>สัดส่วนลูกค้า ชาย / หญิง</h3>
+      <div id="genderBars" style="padding-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- DELIVERY BREAKDOWN -->
+  <div class="section-title">🛵 Delivery Channels &amp; ยอดชำระ</div>
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#FFA726"></span>Delivery Revenue (บาท)</h3>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="deliveryChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#EF5350"></span>สินค้าที่ขายได้ (ชิ้น/แก้ว)</h3>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="qtyChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#26C6DA"></span>ค่าเฉลี่ยต่อบิล (บาท)</h3>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="avgBillChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ICE CREAM SECTION -->
+  <div class="section-title">🍦 Ice Cream Studio Scoop — ยอดขายรายเดือน</div>
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#F06292"></span>จำนวนที่ขายได้ (สกู๊ป)</h3>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="iceCreamQtyChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3><span class="dot" style="--dot:#CE93D8"></span>รายได้จาก Ice Cream (บาท)</h3>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="iceCreamRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-top:0">
+    <h3><span class="dot" style="--dot:#F06292"></span>รายละเอียด Ice Cream รายเดือน</h3>
+    <table class="month-table" id="iceCreamTable"></table>
+  </div>
+
+  <!-- DETAIL TABLE -->
+  <div class="section-title">📋 ตารางข้อมูลรายเดือน</div>
+  <div class="chart-card">
+    <div style="overflow-x:auto">
+      <table class="month-table" id="detailTable"></table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Away Coffee &amp; Co. Internal Dashboard · สาขา 5 · ข้อมูลจาก systemenu.com · 2026
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA  (fetched live — update via Refresh btn)
+// ═══════════════════════════════════════════════
+let DATA = {
+  Jan: {
+    period:"2026-01-01 → 2026-01-31", label:"ม.ค. 66",
+    totalBills:4600, avgBill:186, male:909, female:3691,
+    beverages_qty:7267, bakeries_qty:1926,
+    beverages_thb:578545, bakeries_thb:232265, souvenirs_thb:44555,
+    dineIn_bills:1598, takeaway_bills:2747, delivery_bills:255,
+    dineIn_thb:349287, takeaway_thb:454358, delivery_thb:52250,
+    totalRevenue:855895, grab_thb:52100, lineman_thb:150,
+    memberTopup:31200, refund:909
+  },
+  Feb: {
+    period:"2026-02-01 → 2026-02-28", label:"ก.พ. 69",
+    totalBills:3919, avgBill:185, male:660, female:3259,
+    beverages_qty:6165, bakeries_qty:1703,
+    beverages_thb:490310, bakeries_thb:201760, souvenirs_thb:33383,
+    dineIn_bills:1320, takeaway_bills:2339, delivery_bills:260,
+    dineIn_thb:291044, takeaway_thb:382914, delivery_thb:51930,
+    totalRevenue:725888, grab_thb:51930, lineman_thb:0,
+    memberTopup:25500, refund:660
+  },
+  Mar: {
+    period:"2026-03-01 → 2026-03-31", label:"มี.ค. 69",
+    totalBills:4221, avgBill:179, male:863, female:3356,
+    beverages_qty:6657, bakeries_qty:1585,
+    beverages_thb:524190, bakeries_thb:190620, souvenirs_thb:42315,
+    dineIn_bills:1193, takeaway_bills:2611, delivery_bills:417,
+    dineIn_thb:261938, takeaway_thb:414717, delivery_thb:79975,
+    totalRevenue:756630, grab_thb:79975, lineman_thb:0,
+    memberTopup:40300, refund:863
+  },
+  Apr: {
+    period:"2026-04-01 → 2026-04-15", label:"เม.ย. 69 *",
+    totalBills:2317, avgBill:185, male:492, female:1825,
+    beverages_qty:3770, bakeries_qty:882,
+    beverages_thb:296490, bakeries_thb:104460, souvenirs_thb:28993,
+    dineIn_bills:607, takeaway_bills:1395, delivery_bills:315,
+    dineIn_thb:144322, takeaway_thb:224371, delivery_thb:60075,
+    totalRevenue:428768, grab_thb:60075, lineman_thb:0,
+    memberTopup:8200, refund:492
+  }
+};
+
+// Ice Cream data [qty, thb, dineIn, takeaway, delivery, male, female]
+const ICE_CREAM = {
+  Jan: { qty:505, thb:39895, dineIn:165, takeaway:219, delivery:0, male:320, female:64 },
+  Feb: { qty:377, thb:29783, dineIn:127, takeaway:148, delivery:0, male:239, female:36 },
+  Mar: { qty:395, thb:31205, dineIn:125, takeaway:175, delivery:0, male:254, female:46 },
+  Apr: { qty:277, thb:21883, dineIn:68,  takeaway:144, delivery:0, male:176, female:36 }
+};
+
+const MONTHS    = ['Jan','Feb','Mar','Apr'];
+const LABELS    = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.*'];
+const COLORS    = ['#7B4F2E','#C49A6C','#42A5F5','#AB47BC'];
+const COLORS_A  = ['rgba(123,79,46,.8)','rgba(196,154,108,.8)','rgba(66,165,245,.8)','rgba(171,71,188,.8)'];
+
+const fmt  = n => n == null ? '—' : n.toLocaleString('th-TH');
+const fmtB = n => n == null ? '—' : '฿' + n.toLocaleString('th-TH');
+
+let charts = {};
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => c && c.destroy());
+  charts = {};
+}
+
+// ── KPI GRID ──────────────────────────────────
+function buildKPI() {
+  const ytdRev  = MONTHS.reduce((s,m) => s + (DATA[m].totalRevenue||0), 0);
+  const ytdBill = MONTHS.reduce((s,m) => s + (DATA[m].totalBills||0), 0);
+  const ytdCust = MONTHS.reduce((s,m) => s + (DATA[m].male||0) + (DATA[m].female||0), 0);
+  const avgAvg  = Math.round(MONTHS.reduce((s,m)=>s+(DATA[m].avgBill||0),0)/MONTHS.length);
+
+  const janRev = DATA['Jan'].totalRevenue;
+  const febRev = DATA['Feb'].totalRevenue;
+  const marRev = DATA['Mar'].totalRevenue;
+
+  const momFeb = febRev && janRev ? ((febRev-janRev)/janRev*100).toFixed(1) : null;
+  const momMar = marRev && febRev ? ((marRev-febRev)/febRev*100).toFixed(1) : null;
+
+  const kpis = [
+    { label:'รายได้รวม YTD', value: fmtB(ytdRev), unit:'บาท', accent:'#7B4F2E',
+      badge: null },
+    { label:'บิลรวม YTD', value: fmt(ytdBill), unit:'บิล', accent:'#4CAF50',
+      badge: null },
+    { label:'ลูกค้ารวม YTD', value: fmt(ytdCust), unit:'ราย', accent:'#42A5F5',
+      badge: null },
+    { label:'เฉลี่ย/บิล', value: fmtB(avgAvg), unit:'บาท/บิล', accent:'#FFA726',
+      badge: null },
+    { label:'รายได้ ม.ค.', value: fmtB(DATA['Jan'].totalRevenue), unit:'บาท', accent:'#E65100',
+      badge: null },
+    { label:'รายได้ ก.พ.', value: fmtB(DATA['Feb'].totalRevenue), unit:'บาท', accent:'#1B5E20',
+      badge: momFeb != null ? {text: (momFeb>=0?'+':'')+momFeb+'%', cls: momFeb>=0?'up':'down'} : null },
+    { label:'รายได้ มี.ค.', value: fmtB(DATA['Mar'].totalRevenue), unit:'บาท', accent:'#0D47A1',
+      badge: momMar != null ? {text: (momMar>=0?'+':'')+momMar+'%', cls: momMar>=0?'up':'down'} : null },
+    { label:'รายได้ เม.ย. (1-15)', value: fmtB(DATA['Apr'].totalRevenue), unit:'บาท', accent:'#4A148C',
+      badge: {text:'ข้อมูลบางส่วน', cls:'neu'} }
+  ];
+
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = kpis.map(k => `
+    <div class="kpi-card" style="--accent:${k.accent}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      <div class="unit">${k.unit}</div>
+      ${k.badge ? `<div class="badge ${k.badge.cls}">${k.badge.text}</div>` : ''}
+    </div>`).join('');
+}
+
+// ── REVENUE BAR CHART ─────────────────────────
+function buildRevenueChart() {
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  charts.revenue = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [{
+        label: 'รายได้ (บาท)',
+        data: MONTHS.map(m => DATA[m].totalRevenue),
+        backgroundColor: COLORS_A,
+        borderColor: COLORS,
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false
+      }, {
+        type: 'line',
+        label: 'แนวโน้ม',
+        data: MONTHS.map(m => DATA[m].totalRevenue),
+        borderColor: '#5C3317',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#5C3317',
+        pointRadius: 5,
+        fill: false,
+        tension: 0.35,
+        yAxisID: 'y'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ฿' + ctx.raw.toLocaleString('th-TH')
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color:'#F0E8DC' },
+          ticks: {
+            callback: v => '฿'+( v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v )
+          }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ── CATEGORY STACKED ──────────────────────────
+function buildCategoryChart() {
+  const ctx = document.getElementById('categoryChart').getContext('2d');
+  charts.category = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [
+        { label:'เครื่องดื่ม', data: MONTHS.map(m=>DATA[m].beverages_thb),
+          backgroundColor:'rgba(123,79,46,.85)', borderRadius:4 },
+        { label:'เบเกอรี่',   data: MONTHS.map(m=>DATA[m].bakeries_thb),
+          backgroundColor:'rgba(196,154,108,.85)', borderRadius:4 },
+        { label:'ของฝาก',    data: MONTHS.map(m=>DATA[m].souvenirs_thb),
+          backgroundColor:'rgba(255,167,38,.85)', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'bottom', labels:{ boxWidth:12, font:{size:11} } },
+        tooltip: { callbacks: { label: c=>' ฿'+c.raw.toLocaleString('th-TH') } }
+      },
+      scales: {
+        x: { stacked:true, grid:{ display:false } },
+        y: { stacked:true, grid:{ color:'#F0E8DC' },
+          ticks:{ callback: v=>'฿'+(v>=1000?(v/1000).toFixed(0)+'K':v) } }
+      }
+    }
+  });
+}
+
+// ── CHANNEL CHART ─────────────────────────────
+function buildChannelChart() {
+  const ctx = document.getElementById('channelChart').getContext('2d');
+  charts.channel = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [
+        { label:'กินในร้าน',  data: MONTHS.map(m=>DATA[m].dineIn_thb),
+          backgroundColor:'rgba(66,165,245,.85)', borderRadius:4 },
+        { label:'Take Away',  data: MONTHS.map(m=>DATA[m].takeaway_thb),
+          backgroundColor:'rgba(41,182,246,.7)', borderRadius:4 },
+        { label:'Delivery',   data: MONTHS.map(m=>DATA[m].delivery_thb),
+          backgroundColor:'rgba(38,198,218,.85)', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'bottom', labels:{ boxWidth:12, font:{size:11} } },
+        tooltip: { callbacks: { label: c=>' ฿'+c.raw.toLocaleString('th-TH') } }
+      },
+      scales: {
+        x: { stacked:true, grid:{ display:false } },
+        y: { stacked:true, grid:{ color:'#F0E8DC' },
+          ticks:{ callback: v=>'฿'+(v>=1000?(v/1000).toFixed(0)+'K':v) } }
+      }
+    }
+  });
+}
+
+// ── BILLS CHART ───────────────────────────────
+function buildBillsChart() {
+  const ctx = document.getElementById('billsChart').getContext('2d');
+  charts.bills = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: LABELS,
+      datasets: [{
+        label:'จำนวนบิล',
+        data: MONTHS.map(m=>DATA[m].totalBills),
+        borderColor:'#4CAF50', backgroundColor:'rgba(76,175,80,.12)',
+        borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#4CAF50',
+        fill:true, tension:.35
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false},
+        tooltip:{ callbacks:{ label: c=>' '+c.raw.toLocaleString('th-TH')+' บิล' } }
+      },
+      scales: {
+        y: { beginAtZero:false, grid:{color:'#F0E8DC'} },
+        x: { grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ── GENDER BARS ───────────────────────────────
+function buildGenderBars() {
+  const container = document.getElementById('genderBars');
+  const html = MONTHS.map((m,i) => {
+    const total = (DATA[m].male||0) + (DATA[m].female||0);
+    const femalePct = total ? Math.round(DATA[m].female/total*100) : 0;
+    const malePct   = 100 - femalePct;
+    return `<div class="prog-row">
+      <div class="prog-label">
+        <span class="name">${LABELS[i]}</span>
+        <span class="val">♂ ${malePct}% &nbsp; ♀ ${femalePct}%</span>
+      </div>
+      <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;">
+        <div style="width:${malePct}%;background:#42A5F5;transition:width .6s"></div>
+        <div style="width:${femalePct}%;background:#EC407A;transition:width .6s"></div>
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = html + `
+    <div style="margin-top:14px;display:flex;gap:16px;font-size:.75rem;color:var(--subtext);">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#42A5F5;display:inline-block"></span>ชาย</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#EC407A;display:inline-block"></span>หญิง</span>
+    </div>`;
+}
+
+// ── DELIVERY CHART ────────────────────────────
+function buildDeliveryChart() {
+  const ctx = document.getElementById('deliveryChart').getContext('2d');
+  charts.delivery = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: MONTHS.map(m=>LABELS[MONTHS.indexOf(m)]),
+      datasets: [{
+        data: MONTHS.map(m=>DATA[m].grab_thb + (DATA[m].lineman_thb||0)),
+        backgroundColor: COLORS_A,
+        borderWidth:2, borderColor:'white'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{boxWidth:12,font:{size:11}} },
+        tooltip:{ callbacks:{ label: c=>' ฿'+c.raw.toLocaleString('th-TH') } }
+      },
+      cutout:'60%'
+    }
+  });
+}
+
+// ── QTY CHART ─────────────────────────────────
+function buildQtyChart() {
+  const ctx = document.getElementById('qtyChart').getContext('2d');
+  charts.qty = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [
+        { label:'เครื่องดื่ม (แก้ว)', data: MONTHS.map(m=>DATA[m].beverages_qty),
+          backgroundColor:'rgba(123,79,46,.85)', borderRadius:4 },
+        { label:'เบเกอรี่ (ชิ้น)',    data: MONTHS.map(m=>DATA[m].bakeries_qty),
+          backgroundColor:'rgba(196,154,108,.85)', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{boxWidth:12,font:{size:11}} } },
+      scales:{
+        x:{ stacked:true, grid:{display:false} },
+        y:{ stacked:true, grid:{color:'#F0E8DC'} }
+      }
+    }
+  });
+}
+
+// ── AVG BILL CHART ────────────────────────────
+function buildAvgBillChart() {
+  const ctx = document.getElementById('avgBillChart').getContext('2d');
+  charts.avgBill = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: LABELS,
+      datasets:[{
+        label:'เฉลี่ย/บิล',
+        data: MONTHS.map(m=>DATA[m].avgBill),
+        borderColor:'#26C6DA', backgroundColor:'rgba(38,198,218,.1)',
+        borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#26C6DA',
+        fill:true, tension:.35
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: c=>' ฿'+c.raw+' /บิล' } }
+      },
+      scales:{
+        y:{ beginAtZero:false, grid:{color:'#F0E8DC'},
+          ticks:{ callback: v=>'฿'+v } },
+        x:{ grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ── DETAIL TABLE ──────────────────────────────
+function buildTable() {
+  const headers = ['เดือน','รายได้รวม','จำนวนบิล','เฉลี่ย/บิล','เครื่องดื่ม','เบเกอรี่','ของฝาก','Dine-in','Take Away','Delivery','ลูกค้าชาย','ลูกค้าหญิง'];
+  const tagClass = {Jan:'tag-jan',Feb:'tag-feb',Mar:'tag-mar',Apr:'tag-apr'};
+  const tagLabel = {Jan:'ม.ค.',Feb:'ก.พ.',Mar:'มี.ค.',Apr:'เม.ย.*'};
+
+  const rows = MONTHS.map(m => {
+    const d = DATA[m];
+    return `<tr>
+      <td><span class="month-tag ${tagClass[m]}">${tagLabel[m]}</span></td>
+      <td class="num rev">${fmtB(d.totalRevenue)}</td>
+      <td class="num">${fmt(d.totalBills)}</td>
+      <td class="num">${fmtB(d.avgBill)}</td>
+      <td class="num">${fmtB(d.beverages_thb)}</td>
+      <td class="num">${fmtB(d.bakeries_thb)}</td>
+      <td class="num">${fmtB(d.souvenirs_thb)}</td>
+      <td class="num">${fmtB(d.dineIn_thb)}</td>
+      <td class="num">${fmtB(d.takeaway_thb)}</td>
+      <td class="num">${fmtB(d.delivery_thb)}</td>
+      <td class="num">${fmt(d.male)}</td>
+      <td class="num">${fmt(d.female)}</td>
+    </tr>`;
+  });
+
+  // Totals row
+  const total = k => MONTHS.reduce((s,m)=>s+(DATA[m][k]||0),0);
+  rows.push(`<tr style="background:var(--sand);font-weight:800;">
+    <td><strong>รวม YTD</strong></td>
+    <td class="num rev">${fmtB(total('totalRevenue'))}</td>
+    <td class="num">${fmt(total('totalBills'))}</td>
+    <td class="num">—</td>
+    <td class="num">${fmtB(total('beverages_thb'))}</td>
+    <td class="num">${fmtB(total('bakeries_thb'))}</td>
+    <td class="num">${fmtB(total('souvenirs_thb'))}</td>
+    <td class="num">${fmtB(total('dineIn_thb'))}</td>
+    <td class="num">${fmtB(total('takeaway_thb'))}</td>
+    <td class="num">${fmtB(total('delivery_thb'))}</td>
+    <td class="num">${fmt(total('male'))}</td>
+    <td class="num">${fmt(total('female'))}</td>
+  </tr>`);
+
+  const table = document.getElementById('detailTable');
+  table.innerHTML = `
+    <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.join('')}</tbody>`;
+}
+
+// ── ICE CREAM CHARTS ──────────────────────────
+function buildIceCreamCharts() {
+  // Qty chart
+  const ctx1 = document.getElementById('iceCreamQtyChart').getContext('2d');
+  charts.iceCreamQty = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: LABELS,
+      datasets: [{
+        label: 'สกู๊ป',
+        data: MONTHS.map(m => ICE_CREAM[m].qty),
+        backgroundColor: ['rgba(240,98,146,.85)','rgba(206,147,216,.85)','rgba(240,98,146,.7)','rgba(206,147,216,.7)'],
+        borderRadius: 8, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: c=>' '+c.raw.toLocaleString()+' สกู๊ป' } }
+      },
+      scales:{
+        y:{ beginAtZero:true, grid:{color:'#F0E8DC'} },
+        x:{ grid:{display:false} }
+      }
+    }
+  });
+  // Revenue chart
+  const ctx2 = document.getElementById('iceCreamRevChart').getContext('2d');
+  charts.iceCreamRev = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: LABELS,
+      datasets:[{
+        label:'รายได้ (บาท)',
+        data: MONTHS.map(m => ICE_CREAM[m].thb),
+        borderColor:'#CE93D8', backgroundColor:'rgba(206,147,216,.15)',
+        borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#CE93D8',
+        fill:true, tension:.35
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: c=>' ฿'+c.raw.toLocaleString('th-TH') } }
+      },
+      scales:{
+        y:{ beginAtZero:false, grid:{color:'#F0E8DC'},
+          ticks:{ callback: v=>'฿'+(v>=1000?(v/1000).toFixed(0)+'K':v) }},
+        x:{ grid:{display:false} }
+      }
+    }
+  });
+  // Ice cream table
+  const tagClass = {Jan:'tag-jan',Feb:'tag-feb',Mar:'tag-mar',Apr:'tag-apr'};
+  const tagLabel = {Jan:'ม.ค.',Feb:'ก.พ.',Mar:'มี.ค.',Apr:'เม.ย.*'};
+  const rows = MONTHS.map(m => {
+    const d = ICE_CREAM[m];
+    const total = d.male + d.female;
+    return `<tr>
+      <td><span class="month-tag ${tagClass[m]}">${tagLabel[m]}</span></td>
+      <td class="num" style="color:#F06292;font-weight:800">${fmt(d.qty)} สกู๊ป</td>
+      <td class="num rev">${fmtB(d.thb)}</td>
+      <td class="num">${d.qty && d.thb ? fmtB(Math.round(d.thb/d.qty)) : '—'}</td>
+      <td class="num">${fmt(d.dineIn)}</td>
+      <td class="num">${fmt(d.takeaway)}</td>
+      <td class="num">${fmt(d.male)} (${total?Math.round(d.male/total*100):0}%)</td>
+      <td class="num">${fmt(d.female)} (${total?Math.round(d.female/total*100):0}%)</td>
+    </tr>`;
+  });
+  // total row
+  const tQty = MONTHS.reduce((s,m)=>s+ICE_CREAM[m].qty,0);
+  const tThb = MONTHS.reduce((s,m)=>s+ICE_CREAM[m].thb,0);
+  const tMale = MONTHS.reduce((s,m)=>s+ICE_CREAM[m].male,0);
+  const tFemale = MONTHS.reduce((s,m)=>s+ICE_CREAM[m].female,0);
+  rows.push(`<tr style="background:var(--sand);font-weight:800;">
+    <td><strong>รวม YTD</strong></td>
+    <td class="num" style="color:#F06292;font-weight:800">${fmt(tQty)} สกู๊ป</td>
+    <td class="num rev">${fmtB(tThb)}</td>
+    <td class="num">${fmtB(Math.round(tThb/tQty))}</td>
+    <td class="num">—</td><td class="num">—</td>
+    <td class="num">${fmt(tMale)}</td><td class="num">${fmt(tFemale)}</td>
+  </tr>`);
+  document.getElementById('iceCreamTable').innerHTML = `
+    <thead><tr>
+      <th>เดือน</th><th>จำนวน</th><th>รายได้</th><th>ราคา/สกู๊ป</th>
+      <th>Dine-in</th><th>Take Away</th><th>ชาย</th><th>หญิง</th>
+    </tr></thead><tbody>${rows.join('')}</tbody>`;
+}
+
+// ── RENDER ALL ────────────────────────────────
+function renderDashboard() {
+  buildKPI();
+  destroyCharts();
+  buildRevenueChart();
+  buildCategoryChart();
+  buildChannelChart();
+  buildBillsChart();
+  buildGenderBars();
+  buildDeliveryChart();
+  buildQtyChart();
+  buildAvgBillChart();
+  buildIceCreamCharts();
+  buildTable();
+
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent =
+    'อัปเดตล่าสุด: ' + now.toLocaleString('th-TH', {
+      day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+}
+
+// ── REFRESH (fetches live from server) ────────
+async function refreshData() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+
+  try {
+    async function fetchMonth(from, to) {
+      const body = new URLSearchParams({posid:'5', date:from, todate:to});
+      await fetch('http://systemenu.com/away/rp.php', {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: body.toString()
+      });
+      await new Promise(r => setTimeout(r, 900));
+      const res = await fetch('http://systemenu.com/away/rp.xlsx?t=' + Date.now());
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin=''; for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+      const wb = XLSX.read(btoa(bin),{type:'base64'});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets['รายได้ต่อวัน'],{header:1});
+      const find  = l => { const r=rows.find(r=>r[0]===l); return r?r[1]:null; };
+      const findB = l => { const r=rows.find(r=>r[0]===l&&typeof r[1]==='number'&&r[1]>10000); return r?r[1]:null; };
+      return {
+        totalBills: (rows.find(r=>r[0]==='จำนวนบิลทั้งหมด'&&typeof r[1]==='number')||[null,null])[1],
+        avgBill: Math.round(find('ยอดใช้จ่ายเฉลี่ยต่อบิลที่สำเร็จ')),
+        male:find('ลูกค้าชาย'), female:find('ลูกค้าหญิง'),
+        beverages_qty: (rows.find(r=>r[0]==='เครื่องดื่ม (Beverages)'&&r[2]==='แก้ว')||[])[1],
+        bakeries_qty:  (rows.find(r=>r[0]==='เบเกอร์รี่ (Bakeries)'&&r[2]==='ชิ้น')||[])[1],
+        beverages_thb:findB('เครื่องดื่ม (Beverages)'),
+        bakeries_thb:findB('เบเกอร์รี่ (Bakeries)'),
+        souvenirs_thb:findB('สินค้าซื้อฝาก (Sourvenirs)'),
+        dineIn_bills:(rows.find(r=>r[0]==='กินในร้าน (Dine-in)'&&r[2]==='บิล')||[])[1],
+        takeaway_bills:(rows.find(r=>r[0]==='ซื้อกลับ (take-away)'&&r[2]==='บิล')||[])[1],
+        delivery_bills:(rows.find(r=>r[0]==='ซื้อผ่าน Application (delivery)'&&r[2]==='บิล')||[])[1],
+        dineIn_thb:findB('กินในร้าน (Dine-in)'),
+        takeaway_thb:findB('ซื้อกลับ (take-away)'),
+        delivery_thb:findB('ซื้อผ่าน Application (delivery)'),
+        totalRevenue:find('รายได้'),
+        grab_thb:find('- Grab'), lineman_thb:find('- Line Man'),
+        memberTopup:find('เติมเงินวันนี้ รวม'), refund:find('Refund / Error')
+      };
+    }
+
+    const jan = await fetchMonth('2026-01-01','2026-01-31');
+    const feb = await fetchMonth('2026-02-01','2026-02-28');
+    const mar = await fetchMonth('2026-03-01','2026-03-31');
+    const today = new Date().toISOString().split('T')[0];
+    const apr = await fetchMonth('2026-04-01', today);
+
+    // Merge with existing labels/periods
+    ['Jan','Feb','Mar','Apr'].forEach((key, i) => {
+      const fresh = [jan,feb,mar,apr][i];
+      Object.assign(DATA[key], fresh);
+      if (!DATA[key].totalBills) {
+        DATA[key].totalBills = (DATA[key].dineIn_bills||0)+(DATA[key].takeaway_bills||0)+(DATA[key].delivery_bills||0);
+      }
+    });
+
+    renderDashboard();
+  } catch(e) {
+    alert('ไม่สามารถโหลดข้อมูลได้: ' + e.message);
+  } finally {
+    overlay.classList.remove('show');
+  }
+}
+
+// ── BOOT ──────────────────────────────────────
+// Fix totalBills from sum if missing
+MONTHS.forEach(m => {
+  if (!DATA[m].totalBills) {
+    DATA[m].totalBills = (DATA[m].dineIn_bills||0)+(DATA[m].takeaway_bills||0)+(DATA[m].delivery_bills||0);
+  }
+});
+
+// Load SheetJS for refresh capability
+const s = document.createElement('script');
+s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+document.head.appendChild(s);
+
+renderDashboard();
+</script>
+</body>
+</html>
