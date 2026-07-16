@@ -1,6 +1,39 @@
 # Full Codebase Audit — Away Coffee & Co. Dashboard (สาขา 5)
 
 **วันที่ audit:** 2026-07-16
+**สถานะ:** ✅ แก้ไขแล้วเมื่อ 2026-07-16 — ดูรายละเอียดในหัวข้อ "สถานะการแก้ไข" ด้านล่าง
+
+---
+
+## สถานะการแก้ไข (2026-07-16)
+
+โครงสร้างใหม่: แยก `index.html` (markup) / `styles.css` / `core.js` (pure logic, มี unit test) / `app.js` (DOM + charts + refresh) + `tests/core.test.js` (11 tests, รันด้วย `npm test` — ใช้ node:test ไม่ต้องติดตั้งอะไร)
+
+**แก้แล้วทั้งหมด ยกเว้นรายการต่อไปนี้ที่แก้จาก repo นี้ไม่ได้:**
+
+| ข้อ | สถานะ | เหตุผล |
+|---|---|---|
+| 2.1 endpoint ไม่มี auth | ❌ ต้องแก้ฝั่ง server | client ใส่ auth เองไม่ได้ — ต้องเพิ่ม API key/session ที่ systemenu.com หรือทำ proxy (6.2) |
+| 2.2 HTTP ไม่ใช่ HTTPS | ❌ ต้องแก้ฝั่ง server | ต้องเปิด TLS ที่ systemenu.com — โค้ดฝั่งนี้เตรียม error message อธิบาย mixed content ไว้แล้ว |
+| 2.4 SRI hash | ⚠️ บางส่วน | ใส่ `crossorigin` + `defer` แล้ว แต่ environment ที่ใช้แก้โค้ดเข้าถึง cdnjs ไม่ได้จึงคำนวณ hash ไม่ได้ (เดาผิด = สคริปต์ไม่โหลดทั้งหน้า) — มี TODO พร้อมคำสั่ง generate ใน `index.html` |
+| 2.5 ข้อมูลธุรกิจใน repo | ⚠️ รับทราบ | ยังต้องมี snapshot ให้ dashboard ทำงานได้โดยไม่ต้อง fetch — ควรตรวจว่า repo เป็น private |
+| 1.2 shared-file race | ⚠️ บางส่วน | เพิ่มเช็ค `res.ok` + retry loop แทน sleep คงที่ครั้งเดียวแล้ว แต่การที่ server ใช้ `rp.xlsx` ไฟล์เดียวร่วมกันแก้ขาดได้ที่ server เท่านั้น (6.2) |
+| 3.2 refresh ช้า (sequential) | ⚠️ บางส่วน | ยัง parallel ไม่ได้ตราบใดที่ server ใช้ไฟล์รายงานร่วมกันไฟล์เดียว — ต้องรอ API ตอบ JSON ต่อ request |
+| 1.8 refund parse ผิดแถว | ✅ ตัดออก | ฟิลด์ `refund`/`memberTopup` ไม่ถูกแสดงผลและข้อมูลไม่น่าเชื่อถือ จึงตัดออกจาก DATA และตัว parser — ถ้าจะใช้ในอนาคตต้องตรวจ label จริงในไฟล์ xlsx ก่อน |
+| 6.2 backend proxy | ❌ นอกขอบเขต repo | ต้อง deploy service แยก (Cloudflare Worker/Vercel) — แนวทางอยู่ในข้อ 6.2 |
+
+**สรุปการแก้หลักๆ:**
+- ทุก parsing บังคับเป็นตัวเลข (`num()`) — string จากภายนอกไม่มีทางเข้า `innerHTML` + มี `escapeHtml` ครอบทุกจุดที่ interpolate (2.3)
+- แถวมูลค่าบาทแยกด้วยคอลัมน์หน่วย `r[2]==='บาท'` แทน heuristic `>10000` (1.3), merge กรอง null (1.4), `Math.round` กัน null (1.6)
+- เดือนเป็น dynamic ตั้งแต่ ม.ค. ถึงเดือนปัจจุบัน (เวลาไทย, Asia/Bangkok) — พ.ค.–ก.ค. แสดงแล้วพร้อมสถานะ "ยังไม่มีข้อมูล" (6.1, 1.9)
+- KPI เฉลี่ย/บิลเป็น weighted average, MoM เช็ค `!= null`, KPI รายเดือน generate อัตโนมัติ (1.7, 1.14)
+- SheetJS lazy-load ตอนกด Refresh ครั้งแรก + จัดการ onerror (1.1, 3.3), อ่าน xlsx จาก ArrayBuffer ตรง (3.1), Chart.js `defer` (3.4), กราฟใช้ `chart.update()` ไม่ destroy/สร้างใหม่ (3.5)
+- Error เป็น banner ในหน้า + `console.error`, แยกความล้มเหลวรายเดือน (เดือนเดียวพังไม่ทิ้งทั้งชุด), ปุ่ม Refresh disable ระหว่างโหลด (4.1, 4.2, 5.5)
+- ตาราง Ice Cream มี overflow wrapper, canvas ทุกตัวมี `role="img"` + `aria-label`, gender bar ใช้ลาย pattern แยกเพศ, overlay มี `role="status"`, ปุ่มมี `:focus-visible` (4.3, 4.4)
+- Delivery chart เปลี่ยน doughnut → bar (4.5), footnote เดือนบางส่วนแสดงอัตโนมัติ (4.6), contrast ปรับ (4.7)
+- Magic numbers รวมใน `CONFIG`, label แถว xlsx รวมใน `ROW_LABELS` + รายงาน missing ดังๆ, โค้ดซ้ำ/dead code ตัดหมด (5.1–5.4, 6.3)
+
+---
 **ขอบเขต:** ทั้ง repository — มีไฟล์เดียวคือ `index.html` (932 บรรทัด) เป็น static dashboard ที่ใช้ Chart.js + SheetJS จาก CDN, ข้อมูล hardcode ใน JS และมีปุ่ม Refresh ที่ fetch ข้อมูลจริงจาก `http://systemenu.com/away/rp.php`
 
 > หมายเหตุ: โปรเจกต์นี้ไม่มี React, Supabase, database หรือ API route ของตัวเอง ดังนั้นหัวข้อ SQL injection, RLS, useEffect dependency ฯลฯ ไม่ apply — ประเด็นที่เทียบเคียงได้ (XSS, data validation, race condition, async) ตรวจครบแล้ว
